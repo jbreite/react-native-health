@@ -28,6 +28,7 @@ export const Permissions = {
   Chloride: 'Chloride',
   Cholesterol: 'Cholesterol',
   ConditionRecord: 'ConditionRecord',
+  ClinicalNoteRecord: 'ClinicalNoteRecord',
   Copper: 'Copper',
   CoverageRecord: 'CoverageRecord',
   EnergyConsumed: 'EnergyConsumed',

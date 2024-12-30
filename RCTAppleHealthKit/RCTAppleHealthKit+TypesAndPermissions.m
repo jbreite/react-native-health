@@ -262,6 +262,8 @@
         return [RCTAppleHealthKit clinicalTypeFromName:@"ProcedureRecord"];
     } else if ([@"VitalSignRecord" isEqualToString:key]) {
         return [RCTAppleHealthKit clinicalTypeFromName:@"VitalSignRecord"];
+    } else if ([@"ClinicalNoteRecord" isEqualToString:key]) {
+        return [RCTAppleHealthKit clinicalTypeFromName:@"ClinicalNoteRecord"];
     }
 
     return nil;

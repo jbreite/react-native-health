@@ -27,9 +27,10 @@
         ![type isEqual:@"LabResultRecord"] &&
         ![type isEqual:@"MedicationRecord"] &&
         ![type isEqual:@"ProcedureRecord"] &&
-        ![type isEqual:@"VitalSignRecord"]
-        ) {
-        callback(@[RCTMakeError(@"invalid type, type must be one of 'AllergyRecord'|'ConditionRecord'|'CoverageRecord'|'ImmunizationRecord'|'LabResultRecord'|'MedicationRecord'|'ProcedureRecord'|'VitalSignRecord'", nil, nil)]);
+        ![type isEqual:@"VitalSignRecord"] &&
+        ![type isEqual:@"ClinicalNoteRecord"]
+    ) {
+        callback(@[RCTMakeError(@"invalid type, type must be one of 'AllergyRecord'|'ConditionRecord'|'CoverageRecord'|'ImmunizationRecord'|'LabResultRecord'|'MedicationRecord'|'ProcedureRecord'|'VitalSignRecord'|'ClinicalNoteRecord'", nil, nil)]);
         return;
     }
     

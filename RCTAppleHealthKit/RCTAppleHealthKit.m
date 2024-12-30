@@ -697,6 +697,7 @@ RCT_EXPORT_METHOD(getClinicalRecords:(NSDictionary *)input callback:(RCTResponse
         @"MedicationRecord",
         @"ProcedureRecord",
         @"VitalSignRecord",
+        @"ClinicalNoteRecord",
         @"SleepAnalysis",
         @"InsulinDelivery"
     ];
@@ -810,7 +811,8 @@ RCT_EXPORT_METHOD(getClinicalRecords:(NSDictionary *)input callback:(RCTResponse
             @"LabResultRecord",
             @"MedicationRecord",
             @"ProcedureRecord",
-            @"VitalSignRecord"
+            @"VitalSignRecord",
+            @"ClinicalNoteRecord"
         ];
         
         for(NSString * type in clinicalObservers) {

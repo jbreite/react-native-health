@@ -624,6 +624,7 @@ declare module 'react-native-health' {
     MedicationRecord = 'MedicationRecord',
     ProcedureRecord = 'ProcedureRecord',
     VitalSignRecord = 'VitalSignRecord',
+    ClinicalNoteRecord = "ClinicalNoteRecord"
   }
 
   export interface HealthClinicalRecord extends BaseValue {
@@ -741,6 +742,7 @@ declare module 'react-native-health' {
     Chloride = 'Chloride',
     Cholesterol = 'Cholesterol',
     ConditionRecord = 'ConditionRecord',
+    ClinicalNoteRecord = 'ClinicalNoteRecord',
     Copper = 'Copper',
     CoverageRecord = 'CoverageRecord',
     EnergyConsumed = 'EnergyConsumed',

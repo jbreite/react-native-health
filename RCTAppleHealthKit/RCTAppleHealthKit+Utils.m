@@ -245,6 +245,8 @@ NSString * const kMetadataKey = @"metadata";
             return [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierProcedureRecord];
         } else if ([type isEqual:@"VitalSignRecord"]) {
             return [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierVitalSignRecord];
+        } else if ([type isEqual:@"ClinicalNoteRecord"]) {
+            return [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
         }
     }
     
