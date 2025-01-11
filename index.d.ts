@@ -462,7 +462,6 @@ declare module 'react-native-health' {
       callback: (error: string, result: HealthValue) => void,
     ): void
 
-
     Constants: Constants
   }
 
@@ -546,7 +545,7 @@ declare module 'react-native-health' {
     PausedOrResumeRequest = 'pause or resume request',
     Lap = 'lap',
     Segment = 'segment',
-    Marker = 'marker'
+    Marker = 'marker',
   }
 
   export type HKWorkoutEventType = {
@@ -624,7 +623,7 @@ declare module 'react-native-health' {
     MedicationRecord = 'MedicationRecord',
     ProcedureRecord = 'ProcedureRecord',
     VitalSignRecord = 'VitalSignRecord',
-    ClinicalNoteRecord = "ClinicalNoteRecord"
+    ClinicalNoteRecord = 'ClinicalNoteRecord',
   }
 
   export interface HealthClinicalRecord extends BaseValue {
@@ -632,6 +631,8 @@ declare module 'react-native-health' {
     sourceId: string
     displayName: string
     fhirData: any
+    fhirRelease: string
+    fhirVersion: string
   }
 
   /* Health Constants */
