@@ -1258,20 +1258,25 @@
             dispatch_group_t group = dispatch_group_create();
             
             for (HKClinicalRecord *record in results) {
-                for (HKAttachment *attachment in record.attachments) {
-                    dispatch_group_enter(group);
-                    [attachment getDataWithCompletion:^(NSData *data, NSError *attachmentError) {
-                        if (!attachmentError && data) {
-                            NSDictionary *attachmentDict = @{
-                                @"id": [[record UUID] UUIDString],
-                                @"data": [data base64EncodedStringWithOptions:0],
-                                @"contentType": attachment.contentType,
-                                @"displayName": attachment.displayName ?: [NSNull null]
-                            };
-                            [attachmentData addObject:attachmentDict];
-                        }
-                        dispatch_group_leave(group);
-                    }];
+                if (@available(iOS 14.0, *)) {
+                    NSArray<NSURL *> *attachmentURLs = record.FHIRResource.attachmentURLs;
+                    for (NSURL *url in attachmentURLs) {
+                        dispatch_group_enter(group);
+                        [self.healthStore getAttachmentDataForClinicalRecord:record 
+                                                                       URL:url 
+                                                              completion:^(NSData *data, NSError *attachmentError) {
+                            if (!attachmentError && data) {
+                                NSDictionary *attachmentDict = @{
+                                    @"id": [[record UUID] UUIDString],
+                                    @"data": [data base64EncodedStringWithOptions:0],
+                                    @"contentType": url.pathExtension ?: @"",
+                                    @"url": url.absoluteString
+                                };
+                                [attachmentData addObject:attachmentDict];
+                            }
+                            dispatch_group_leave(group);
+                        }];
+                    }
                 }
             }
             
