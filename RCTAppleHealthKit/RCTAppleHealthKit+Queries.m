@@ -1258,25 +1258,28 @@
             dispatch_group_t group = dispatch_group_create();
             
             for (HKClinicalRecord *record in results) {
-                if (@available(iOS 14.0, *)) {
-                    NSArray<NSURL *> *attachmentURLs = record.FHIRResource.attachmentURLs;
-                    for (NSURL *url in attachmentURLs) {
-                        dispatch_group_enter(group);
-                        [self.healthStore getAttachmentDataForClinicalRecord:record 
-                                                                       URL:url 
-                                                              completion:^(NSData *data, NSError *attachmentError) {
-                            if (!attachmentError && data) {
-                                NSDictionary *attachmentDict = @{
-                                    @"id": [[record UUID] UUIDString],
-                                    @"data": [data base64EncodedStringWithOptions:0],
-                                    @"contentType": url.pathExtension ?: @"",
-                                    @"url": url.absoluteString
-                                };
-                                [attachmentData addObject:attachmentDict];
-                            }
+                HKFHIRResource *resource = record.FHIRResource;
+                if (resource) {
+                    dispatch_group_enter(group);
+                    [self.healthStore requestAuthorizationToShareTypes:nil 
+                                                          readTypes:[NSSet setWithObject:type]
+                                                         completion:^(BOOL success, NSError *error) {
+                        if (success) {
+                            [resource fetchFHIRContentWithCompletion:^(NSData *data, NSError *error) {
+                                if (!error && data) {
+                                    NSDictionary *attachmentDict = @{
+                                        @"id": [[record UUID] UUIDString],
+                                        @"data": [data base64EncodedStringWithOptions:0],
+                                        @"contentType": @"application/fhir+json"
+                                    };
+                                    [attachmentData addObject:attachmentDict];
+                                }
+                                dispatch_group_leave(group);
+                            }];
+                        } else {
                             dispatch_group_leave(group);
-                        }];
-                    }
+                        }
+                    }];
                 }
             }
             
@@ -1288,7 +1291,7 @@
         [self.healthStore executeQuery:query];
     } else {
         completion(nil, [NSError errorWithDomain:@"com.healthkit" code:2 userInfo:@{
-            NSLocalizedDescriptionKey: @"Attachments are only available in iOS 14.0 and later"
+            NSLocalizedDescriptionKey: @"FHIR resources are only available in iOS 14.0 and later"
         }]);
     }
 }
