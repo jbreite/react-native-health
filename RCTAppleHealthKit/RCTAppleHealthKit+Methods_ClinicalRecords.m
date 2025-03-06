@@ -100,4 +100,76 @@
     }];
 }
 
+- (void)clinicalRecord_getAttachments:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
+{
+    if (!input || !callback) {
+        callback(@[RCTMakeError(@"Input and callback are required", nil, nil)]);
+        return;
+    }
+
+    NSString *sampleId = [RCTAppleHealthKit stringFromOptions:input key:@"id" withDefault:nil];
+    if (!sampleId) {
+        callback(@[RCTMakeError(@"Sample id is required", nil, nil)]);
+        return;
+    }
+
+    HKSampleType *sampleType = [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"UUID == %@", [[NSUUID alloc] initWithUUIDString:sampleId]];
+
+    HKHealthStore *healthStore = [[HKHealthStore alloc] init];
+    HKAttachmentStore *attachmentStore = [[HKAttachmentStore alloc] initWithHealthStore:healthStore];
+
+    HKSampleQuery *query = [[HKSampleQuery alloc] initWithSampleType:sampleType
+                                                         predicate:predicate
+                                                         limit:1
+                                                         sortDescriptors:nil
+                                                         resultsHandler:^(HKSampleQuery *query, NSArray *results, NSError *error) {
+        if (error) {
+            callback(@[RCTMakeError(@"Error getting clinical record", error, nil)]);
+            return;
+        }
+
+        if (!results || results.count == 0) {
+            callback(@[RCTMakeError(@"No clinical record found", nil, nil)]);
+            return;
+        }
+
+        HKClinicalRecord *clinicalRecord = results.firstObject;
+        
+        [attachmentStore getAttachmentsForObject:clinicalRecord completion:^(NSArray<HKAttachment *> *attachments, NSError *attachmentError) {
+            if (attachmentError) {
+                callback(@[RCTMakeError(@"Error getting attachments", attachmentError, nil)]);
+                return;
+            }
+
+            NSMutableArray *attachmentData = [NSMutableArray array];
+            dispatch_group_t group = dispatch_group_create();
+            
+            for (HKAttachment *attachment in attachments) {
+                dispatch_group_enter(group);
+                [attachmentStore getDataForAttachment:attachment completion:^(NSData *data, NSError *dataError) {
+                    if (!dataError && data) {
+                        NSString *base64String = [data base64EncodedStringWithOptions:0];
+                        [attachmentData addObject:@{
+                            @"id": attachment.identifier,
+                            @"contentType": attachment.contentType,
+                            @"data": base64String,
+                            @"name": attachment.name ?: [NSNull null],
+                            @"creationDate": [RCTAppleHealthKit buildISO8601StringFromDate:attachment.creationDate] ?: [NSNull null],
+                            @"metadata": attachment.metadata ?: [NSNull null]
+                        }];
+                    }
+                    dispatch_group_leave(group);
+                }];
+            }
+
+            dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+                callback(@[[NSNull null], attachmentData]);
+            });
+        }];
+    }];
+
+    [healthStore executeQuery:query];
+}
+
 @end

@@ -11,6 +11,5 @@
 
 - (void)clinicalRecords_getClinicalRecords:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 - (void)clinical_registerObserver:(NSString *)type bridge:(RCTBridge *)bridge hasListeners:(bool)hasListeners;
-- (void)clinicalRecords_getClinicalRecordAttachments:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
-
+- (void)clinicalRecord_getAttachments:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
 @end

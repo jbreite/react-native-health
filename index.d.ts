@@ -462,6 +462,23 @@ declare module 'react-native-health' {
       callback: (error: string, result: HealthValue) => void,
     ): void
 
+    getAttachmentsForClinicalRecord(
+      options: {
+        id: string
+      },
+      callback: (
+        error: string | null,
+        results?: Array<{
+          id: string
+          contentType: string
+          data: string // base64 encoded string
+          name: string | null
+          creationDate: string | null
+          metadata: { [key: string]: any } | null
+        }>,
+      ) => void,
+    ): void
+
     Constants: Constants
   }
 
