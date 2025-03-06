@@ -1329,7 +1329,7 @@
             return;
         }
         
-        // Then continue with the JSON parsing
+        // Parse the FHIR JSON
         NSError *jsonError;
         NSDictionary *fhirJson = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
         if (jsonError) {

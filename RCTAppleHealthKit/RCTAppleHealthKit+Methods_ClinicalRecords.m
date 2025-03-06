@@ -96,7 +96,7 @@
             callback(@[[NSNull null], attachmentData]);
         }];
     } else {
-        callback(@[RCTMakeError(@"HKAttachment is only available on iOS 16.0 and later", nil, nil)]);
+        callback(@[RCTMakeError(@"This functionality is only available on iOS 16.0 and later", nil, nil)]);
     }
 }
 
