@@ -1311,73 +1311,82 @@
         }
         
         // Get the FHIR data
-        [foundRecord.FHIRResource dataWithCompletion:^(NSData *data, NSError *error) {
-            if (error) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    completion(nil, error);
-                });
-                return;
-            }
-            
-            // Parse the FHIR JSON
-            NSError *jsonError;
-            NSDictionary *fhirJson = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
-            if (jsonError) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    completion(nil, jsonError);
-                });
-                return;
-            }
-            
-            // Look for presentedForm in the FHIR resource
-            NSArray *presentedForms = fhirJson[@"presentedForm"];
-            if (!presentedForms || presentedForms.count == 0 || attachmentIndex >= presentedForms.count) {
-                NSError *noAttachmentsError = [NSError errorWithDomain:@"com.healthkit.error" code:3 userInfo:@{NSLocalizedDescriptionKey: @"No attachments found or index out of range"}];
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    completion(nil, noAttachmentsError);
-                });
-                return;
-            }
-            
-            // Get the attachment data at the specified index
-            NSDictionary *attachment = presentedForms[attachmentIndex];
-            NSString *contentType = attachment[@"contentType"];
-            NSString *title = attachment[@"title"];
-            NSString *base64Content = attachment[@"data"];
-            NSString *url = attachment[@"url"];
-            
-            // Create response dictionary
-            NSMutableDictionary *response = [NSMutableDictionary dictionaryWithCapacity:5];
-            
-            if (base64Content) {
-                [response setObject:base64Content forKey:@"content"];
-                
-                NSData *decodedData = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
-                if (decodedData) {
-                    [response setObject:@(decodedData.length) forKey:@"size"];
-                }
-            } else if (url) {
-                [response setObject:url forKey:@"url"];
-            } else {
-                NSError *noContentError = [NSError errorWithDomain:@"com.healthkit.error" code:6 userInfo:@{NSLocalizedDescriptionKey: @"Attachment has no content data or URL"}];
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    completion(nil, noContentError);
-                });
-                return;
-            }
-            
-            if (contentType) {
-                [response setObject:contentType forKey:@"contentType"];
-            }
-            
-            if (title) {
-                [response setObject:title forKey:@"title"];
-            }
-            
+        HKFHIRResource *fhirResource = [foundRecord FHIRResource];
+        if (!fhirResource) {
+            NSError *noResourceError = [NSError errorWithDomain:@"com.healthkit.error" code:4 userInfo:@{NSLocalizedDescriptionKey: @"Could not retrieve FHIR resource"}];
             dispatch_async(dispatch_get_main_queue(), ^{
-                completion(response, nil);
+                completion(nil, noResourceError);
             });
-        }];
+            return;
+        }
+        
+        NSData *data = [fhirResource data];
+        if (!data) {
+            NSError *noDataError = [NSError errorWithDomain:@"com.healthkit.error" code:5 userInfo:@{NSLocalizedDescriptionKey: @"Could not retrieve FHIR data"}];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(nil, noDataError);
+            });
+            return;
+        }
+        
+        // Then continue with the JSON parsing
+        NSError *jsonError;
+        NSDictionary *fhirJson = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+        if (jsonError) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(nil, jsonError);
+            });
+            return;
+        }
+        
+        // Look for presentedForm in the FHIR resource
+        NSArray *presentedForms = fhirJson[@"presentedForm"];
+        if (!presentedForms || presentedForms.count == 0 || attachmentIndex >= presentedForms.count) {
+            NSError *noAttachmentsError = [NSError errorWithDomain:@"com.healthkit.error" code:3 userInfo:@{NSLocalizedDescriptionKey: @"No attachments found or index out of range"}];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(nil, noAttachmentsError);
+            });
+            return;
+        }
+        
+        // Get the attachment data at the specified index
+        NSDictionary *attachment = presentedForms[attachmentIndex];
+        NSString *contentType = attachment[@"contentType"];
+        NSString *title = attachment[@"title"];
+        NSString *base64Content = attachment[@"data"];
+        NSString *url = attachment[@"url"];
+        
+        // Create response dictionary
+        NSMutableDictionary *response = [NSMutableDictionary dictionaryWithCapacity:5];
+        
+        if (base64Content) {
+            [response setObject:base64Content forKey:@"content"];
+            
+            NSData *decodedData = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
+            if (decodedData) {
+                [response setObject:@(decodedData.length) forKey:@"size"];
+            }
+        } else if (url) {
+            [response setObject:url forKey:@"url"];
+        } else {
+            NSError *noContentError = [NSError errorWithDomain:@"com.healthkit.error" code:6 userInfo:@{NSLocalizedDescriptionKey: @"Attachment has no content data or URL"}];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(nil, noContentError);
+            });
+            return;
+        }
+        
+        if (contentType) {
+            [response setObject:contentType forKey:@"contentType"];
+        }
+        
+        if (title) {
+            [response setObject:title forKey:@"title"];
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion(response, nil);
+        });
     });
 }
 
