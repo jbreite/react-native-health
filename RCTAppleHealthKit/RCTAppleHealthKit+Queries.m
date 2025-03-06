@@ -7,6 +7,7 @@
 //
 
 #import "RCTAppleHealthKit+Queries.h"
+#include <HealthKit/HealthKit.h>
 #import "RCTAppleHealthKit+Utils.h"
 #import "RCTAppleHealthKit+TypesAndPermissions.h"
 
@@ -1234,6 +1235,150 @@
 
     [self.healthStore executeQuery:query];
 
+}
+
+- (void)fetchAttachmentForClinicalRecord:(NSString *)recordId
+                         attachmentIndex:(NSInteger)attachmentIndex
+                              completion:(void (^)(NSDictionary *, NSError *))completion API_AVAILABLE(ios(16.0))
+{
+    // Parse the record ID to get the UUID
+    NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:recordId];
+    if (!uuid) {
+        NSError *error = [NSError errorWithDomain:@"com.healthkit.error" code:0 userInfo:@{NSLocalizedDescriptionKey: @"Invalid record ID format"}];
+        completion(nil, error);
+        return;
+    }
+    
+    // Get all clinical record types to search through
+    NSArray *clinicalTypes = @[
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierAllergyRecord],
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierConditionRecord],
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierImmunizationRecord],
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierLabResultRecord],
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierMedicationRecord],
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierProcedureRecord],
+        [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierVitalSignRecord]
+    ];
+    
+    if (@available(iOS 14.0, *)) {
+        clinicalTypes = [clinicalTypes arrayByAddingObject:[HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord]];
+    }
+    
+    // Create a dispatch group to handle multiple queries
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+    __block HKClinicalRecord *foundRecord = nil;
+    __block NSError *lastError = nil;
+    
+    // Search through each clinical type
+    for (HKSampleType *clinicalType in clinicalTypes) {
+        dispatch_group_enter(group);
+        
+        NSPredicate *predicate = [HKQuery predicateForObjectWithUUID:uuid];
+        HKSampleQuery *query = [[HKSampleQuery alloc] initWithSampleType:clinicalType
+                                                              predicate:predicate
+                                                                  limit:1
+                                                        sortDescriptors:nil
+                                                         resultsHandler:^(HKSampleQuery *query, NSArray *results, NSError *error) {
+            if (error) {
+                lastError = error;
+            } else if (results.count > 0) {
+                foundRecord = results.firstObject;
+            }
+            
+            dispatch_group_leave(group);
+        }];
+        
+        [self.healthStore executeQuery:query];
+    }
+    
+    // When all queries complete, process the result
+    dispatch_group_notify(group, queue, ^{
+        if (!foundRecord && lastError) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(nil, lastError);
+            });
+            return;
+        }
+        
+        if (!foundRecord) {
+            NSError *noRecordError = [NSError errorWithDomain:@"com.healthkit.error" code:1 userInfo:@{NSLocalizedDescriptionKey: @"No clinical record found with the provided ID"}];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(nil, noRecordError);
+            });
+            return;
+        }
+        
+        // Get the FHIR data
+        [foundRecord.FHIRResource dataWithCompletion:^(NSData *data, NSError *error) {
+            if (error) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    completion(nil, error);
+                });
+                return;
+            }
+            
+            // Parse the FHIR JSON
+            NSError *jsonError;
+            NSDictionary *fhirJson = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+            if (jsonError) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    completion(nil, jsonError);
+                });
+                return;
+            }
+            
+            // Look for presentedForm in the FHIR resource
+            NSArray *presentedForms = fhirJson[@"presentedForm"];
+            if (!presentedForms || presentedForms.count == 0 || attachmentIndex >= presentedForms.count) {
+                NSError *noAttachmentsError = [NSError errorWithDomain:@"com.healthkit.error" code:3 userInfo:@{NSLocalizedDescriptionKey: @"No attachments found or index out of range"}];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    completion(nil, noAttachmentsError);
+                });
+                return;
+            }
+            
+            // Get the attachment data at the specified index
+            NSDictionary *attachment = presentedForms[attachmentIndex];
+            NSString *contentType = attachment[@"contentType"];
+            NSString *title = attachment[@"title"];
+            NSString *base64Content = attachment[@"data"];
+            NSString *url = attachment[@"url"];
+            
+            // Create response dictionary
+            NSMutableDictionary *response = [NSMutableDictionary dictionaryWithCapacity:5];
+            
+            if (base64Content) {
+                [response setObject:base64Content forKey:@"content"];
+                
+                NSData *decodedData = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
+                if (decodedData) {
+                    [response setObject:@(decodedData.length) forKey:@"size"];
+                }
+            } else if (url) {
+                [response setObject:url forKey:@"url"];
+            } else {
+                NSError *noContentError = [NSError errorWithDomain:@"com.healthkit.error" code:6 userInfo:@{NSLocalizedDescriptionKey: @"Attachment has no content data or URL"}];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    completion(nil, noContentError);
+                });
+                return;
+            }
+            
+            if (contentType) {
+                [response setObject:contentType forKey:@"contentType"];
+            }
+            
+            if (title) {
+                [response setObject:title forKey:@"title"];
+            }
+            
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(response, nil);
+            });
+        }];
+    });
 }
 
 @end

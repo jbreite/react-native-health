@@ -71,4 +71,33 @@
     }
 }
 
+- (void)clinicalRecords_getClinicalRecordAttachment:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback
+{
+    NSString *recordId = [RCTAppleHealthKit stringFromOptions:input key:@"id" withDefault:nil];
+    NSInteger attachmentIndex = [RCTAppleHealthKit intFromOptions:input key:@"attachmentIndex" withDefault:0];
+    
+    if(recordId == nil) {
+        callback(@[RCTMakeError(@"id is required in options", nil, nil)]);
+        return;
+    }
+    
+    if (@available(iOS 16.0, *)) {
+        [self fetchAttachmentForClinicalRecord:recordId attachmentIndex:attachmentIndex completion:^(NSDictionary *attachmentData, NSError *error) {
+            if (error) {
+                callback(@[RCTJSErrorFromNSError(error)]);
+                return;
+            }
+            
+            if (!attachmentData) {
+                callback(@[RCTMakeError(@"No attachment found", nil, nil)]);
+                return;
+            }
+            
+            callback(@[[NSNull null], attachmentData]);
+        }];
+    } else {
+        callback(@[RCTMakeError(@"HKAttachment is only available on iOS 16.0 and later", nil, nil)]);
+    }
+}
+
 @end

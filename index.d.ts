@@ -440,6 +440,14 @@ declare module 'react-native-health' {
       callback: (err: string, results: Array<HealthClinicalRecord>) => void,
     ): void
 
+    getClinicalRecordAttachment: (
+      options: {
+        id: string,
+        attachmentIndex?: number
+      },
+      callback: (err: string, results: HealthAttachmentData) => void,
+    ) => void
+
     setObserver(options: HealthObserverOptions): void
 
     getActivitySummary(
@@ -624,6 +632,14 @@ declare module 'react-native-health' {
     ProcedureRecord = 'ProcedureRecord',
     VitalSignRecord = 'VitalSignRecord',
     ClinicalNoteRecord = 'ClinicalNoteRecord',
+  }
+
+  export interface HealthAttachmentData {
+    content?: string;
+    url?: string;
+    contentType?: string;
+    title?: string;
+    size?: number;
   }
 
   export interface HealthClinicalRecord extends BaseValue {

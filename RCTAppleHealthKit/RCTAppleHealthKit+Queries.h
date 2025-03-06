@@ -118,4 +118,8 @@
                      endDate:(NSDate *)endDate
                   completion:(void (^)(NSArray *, NSError *))completionHandler;
 
+- (void)fetchAttachmentForClinicalRecord:(NSString *)recordId
+                         attachmentIndex:(NSInteger)attachmentIndex
+                              completion:(void (^)(NSDictionary *, NSError *))completion API_AVAILABLE(ios(16.0));
+
 @end
