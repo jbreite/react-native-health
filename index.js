@@ -35,7 +35,8 @@ export const HealthKit = {
   saveSteps: AppleHealthKit.saveSteps,
   saveWalkingRunningDistance: AppleHealthKit.saveWalkingRunningDistance,
   getDistanceWalkingRunning: AppleHealthKit.getDistanceWalkingRunning,
-  getDailyDistanceWalkingRunningSamples: AppleHealthKit.getDailyDistanceWalkingRunningSamples,
+  getDailyDistanceWalkingRunningSamples:
+    AppleHealthKit.getDailyDistanceWalkingRunningSamples,
   getDistanceCycling: AppleHealthKit.getDistanceCycling,
   getDailyDistanceCyclingSamples: AppleHealthKit.getDailyDistanceCyclingSamples,
   getFlightsClimbed: AppleHealthKit.getFlightsClimbed,
@@ -80,7 +81,8 @@ export const HealthKit = {
   getBloodAlcoholContentSamples: AppleHealthKit.getBloodAlcoholContentSamples,
   saveBloodAlcoholContent: AppleHealthKit.saveBloodAlcoholContent,
   getDistanceSwimming: AppleHealthKit.getDistanceSwimming,
-  getDailyDistanceSwimmingSamples: AppleHealthKit.getDailyDistanceSwimmingSamples,
+  getDailyDistanceSwimmingSamples:
+    AppleHealthKit.getDailyDistanceSwimmingSamples,
   getOxygenSaturationSamples: AppleHealthKit.getOxygenSaturationSamples,
   getElectrocardiogramSamples: AppleHealthKit.getElectrocardiogramSamples,
   saveBodyFatPercentage: AppleHealthKit.saveBodyFatPercentage,
@@ -88,7 +90,6 @@ export const HealthKit = {
   getEnvironmentalAudioExposure: AppleHealthKit.getEnvironmentalAudioExposure,
   getHeadphoneAudioExposure: AppleHealthKit.getHeadphoneAudioExposure,
   getClinicalRecords: AppleHealthKit.getClinicalRecords,
-  getClinicalRecordAttachments: AppleHealthKit.getClinicalRecordAttachments,
   getActivitySummary: AppleHealthKit.getActivitySummary,
   getInsulinDeliverySamples: AppleHealthKit.getInsulinDeliverySamples,
   saveInsulinDeliverySample: AppleHealthKit.saveInsulinDeliverySample,

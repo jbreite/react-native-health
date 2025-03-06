@@ -118,9 +118,4 @@
                      endDate:(NSDate *)endDate
                   completion:(void (^)(NSArray *, NSError *))completionHandler;
 
-- (void)fetchClinicalRecordAttachments:(NSPredicate *)predicate
-                            ascending:(BOOL)asc
-                               limit:(NSUInteger)lim
-                         completion:(void (^)(NSArray *, NSError *))completion;
-
 @end
