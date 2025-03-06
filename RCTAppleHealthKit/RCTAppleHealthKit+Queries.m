@@ -1236,5 +1236,57 @@
 
 }
 
+- (void)fetchClinicalRecordAttachments:(NSPredicate *)predicate
+                            ascending:(BOOL)asc
+                               limit:(NSUInteger)lim
+                         completion:(void (^)(NSArray *, NSError *))completion {
+    if (@available(iOS 14.0, *)) {
+        HKClinicalType *type = [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
+        NSSortDescriptor *timeSortDescriptor = [[NSSortDescriptor alloc] initWithKey:HKSampleSortIdentifierEndDate ascending:asc];
+        
+        HKSampleQuery *query = [[HKSampleQuery alloc] initWithSampleType:type
+                                                             predicate:predicate
+                                                                 limit:lim
+                                                       sortDescriptors:@[timeSortDescriptor]
+                                                        resultsHandler:^(HKSampleQuery *query, NSArray *results, NSError *error) {
+            if (error) {
+                completion(nil, error);
+                return;
+            }
+            
+            NSMutableArray *attachmentData = [NSMutableArray array];
+            dispatch_group_t group = dispatch_group_create();
+            
+            for (HKClinicalRecord *record in results) {
+                for (HKAttachment *attachment in record.attachments) {
+                    dispatch_group_enter(group);
+                    [attachment getDataWithCompletion:^(NSData *data, NSError *attachmentError) {
+                        if (!attachmentError && data) {
+                            NSDictionary *attachmentDict = @{
+                                @"id": [[record UUID] UUIDString],
+                                @"data": [data base64EncodedStringWithOptions:0],
+                                @"contentType": attachment.contentType,
+                                @"displayName": attachment.displayName ?: [NSNull null]
+                            };
+                            [attachmentData addObject:attachmentDict];
+                        }
+                        dispatch_group_leave(group);
+                    }];
+                }
+            }
+            
+            dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+                completion(attachmentData, nil);
+            });
+        }];
+        
+        [self.healthStore executeQuery:query];
+    } else {
+        completion(nil, [NSError errorWithDomain:@"com.healthkit" code:2 userInfo:@{
+            NSLocalizedDescriptionKey: @"Attachments are only available in iOS 14.0 and later"
+        }]);
+    }
+}
+
 @end
 
