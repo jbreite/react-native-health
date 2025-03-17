@@ -17,6 +17,22 @@ declare module 'react-native-health' {
     message?: string
   }
 
+  export interface HealthAttachmentOptions {
+    url?: string
+    id?: string
+  }
+
+  export interface HealthAttachment {
+    id: string
+    name: string
+    contentType: string
+    size: number
+    creationDate: string | null
+    data: string
+    isBase64: boolean
+    metadata?: Record<string, any>
+  }
+
   export interface AppleHealthKit {
     initHealthKit(
       permissions: HealthKitPermissions,
@@ -460,6 +476,11 @@ declare module 'react-native-health' {
     deleteInsulinDeliverySample(
       id: string,
       callback: (error: string, result: HealthValue) => void,
+    ): void
+
+    getAttachment(
+      options: HealthAttachmentOptions,
+      callback: (err: string, results: HealthAttachment) => void,
     ): void
 
     Constants: Constants
