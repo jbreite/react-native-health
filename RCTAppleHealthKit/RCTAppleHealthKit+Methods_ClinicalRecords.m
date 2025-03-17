@@ -81,49 +81,29 @@
         return;
     }
     
-    // Check if HKAttachmentStore is available (iOS 16+)
+    // Check if HKAttachment is available (iOS 16+)
     if (@available(iOS 16.0, *)) {
-        HKAttachmentStore *attachmentStore = [[HKAttachmentStore alloc] initWithHealthStore:self.healthStore];
-        
         // Convert the Binary/identifier URL format to just the identifier
-        NSString *identifier = attachmentUrl;
+        NSString *identifierString = attachmentUrl;
         if (attachmentUrl && [attachmentUrl hasPrefix:@"Binary/"]) {
-            identifier = [attachmentUrl stringByReplacingOccurrencesOfString:@"Binary/" withString:@""];
+            identifierString = [attachmentUrl stringByReplacingOccurrencesOfString:@"Binary/" withString:@""];
         } else if (attachmentId) {
-            identifier = attachmentId;
+            identifierString = attachmentId;
         }
         
-        // Try to find the attachment by using the identifier
-        NSError *error = nil;
-        NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:identifier];
-        
+        NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:identifierString];
         if (!uuid) {
             callback(@[RCTMakeError(@"Invalid attachment identifier format", nil, nil)]);
             return;
         }
         
-        // Use a background queue to not block the main thread
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            // First we need to get the attachment from the store
-            __block HKAttachment *attachment = nil;
-            __block NSError *fetchError = nil;
-            
-            // Create a semaphore to make async code synchronous
-            dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-            
-            [attachmentStore getAttachmentWithIdentifier:uuid completionHandler:^(HKAttachment * _Nullable result, NSError * _Nullable getError) {
-                if (getError) {
-                    fetchError = getError;
-                } else {
-                    attachment = result;
-                }
-                dispatch_semaphore_signal(semaphore);
-            }];
-            
-            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-            
-            if (fetchError) {
-                callback(@[RCTMakeError(@"Error retrieving attachment", fetchError, nil)]);
+        // Use the HealthKit store to get the attachment
+        HKAttachmentStore *attachmentStore = [[HKAttachmentStore alloc] initWithHealthStore:self.healthStore];
+        
+        // Get attachment asynchronously
+        [attachmentStore attachmentWithIdentifier:uuid completionHandler:^(HKAttachment * _Nullable attachment, NSError * _Nullable error) {
+            if (error) {
+                callback(@[RCTMakeError(@"Error retrieving attachment", error, nil)]);
                 return;
             }
             
@@ -132,65 +112,51 @@
                 return;
             }
             
-            // Now we have the attachment, get the data reader
-            HKAttachmentDataReader *dataReader = [attachmentStore dataReaderForAttachment:attachment];
+            // Create a data reader for the attachment
+            HKAttachmentDataReader *reader = [attachmentStore dataReaderForAttachment:attachment];
             
-            // Read the attachment data
-            dispatch_semaphore_t dataSemaphore = dispatch_semaphore_create(0);
-            __block NSData *attachmentData = nil;
-            __block NSError *dataError = nil;
-            
-            [dataReader readDataCompletionHandler:^(NSData * _Nullable data, NSError * _Nullable readError) {
+            // Read the data
+            [reader readDataWithCompletionHandler:^(NSData * _Nullable data, NSError * _Nullable readError) {
                 if (readError) {
-                    dataError = readError;
-                } else {
-                    attachmentData = data;
+                    callback(@[RCTMakeError(@"Error reading attachment data", readError, nil)]);
+                    return;
                 }
-                dispatch_semaphore_signal(dataSemaphore);
+                
+                if (!data) {
+                    callback(@[RCTMakeError(@"No data found in attachment", nil, nil)]);
+                    return;
+                }
+                
+                // Convert the data based on content type for human readability
+                NSString *contentType = attachment.contentType;
+                NSString *dataString = nil;
+                
+                if ([contentType hasPrefix:@"text/"]) {
+                    // For text content, convert to a UTF-8 string
+                    dataString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                } else {
+                    // For binary content like images, convert to base64
+                    dataString = [data base64EncodedStringWithOptions:0];
+                }
+                
+                // Create the result object
+                NSDictionary *result = @{
+                    @"id": [[attachment identifier] UUIDString],
+                    @"name": attachment.name ?: @"",
+                    @"contentType": contentType ?: @"application/octet-stream",
+                    @"size": @(attachment.size),
+                    @"creationDate": attachment.creationDate ? [RCTAppleHealthKit buildISO8601StringFromDate:attachment.creationDate] : [NSNull null],
+                    @"data": dataString ?: [NSNull null],
+                    @"isBase64": [contentType hasPrefix:@"text/"] ? @NO : @YES,
+                    @"metadata": attachment.metadata ?: [NSNull null]
+                };
+                
+                callback(@[[NSNull null], result]);
             }];
-            
-            dispatch_semaphore_wait(dataSemaphore, DISPATCH_TIME_FOREVER);
-            
-            if (dataError) {
-                callback(@[RCTMakeError(@"Error reading attachment data", dataError, nil)]);
-                return;
-            }
-            
-            if (!attachmentData) {
-                callback(@[RCTMakeError(@"No data found in attachment", nil, nil)]);
-                return;
-            }
-            
-            // Convert the data based on content type for human readability
-            NSString *contentType = attachment.contentType;
-            NSString *dataString = nil;
-            
-            if ([contentType hasPrefix:@"text/"]) {
-                // For text content, convert to a UTF-8 string
-                dataString = [[NSString alloc] initWithData:attachmentData encoding:NSUTF8StringEncoding];
-            } else {
-                // For binary content like images, convert to base64
-                dataString = [attachmentData base64EncodedStringWithOptions:0];
-            }
-            
-            // Create the result object
-            NSDictionary *result = @{
-                @"id": [[attachment identifier] UUIDString],
-                @"name": attachment.name ?: @"",
-                @"contentType": contentType ?: @"application/octet-stream",
-                @"size": @(attachment.size),
-                @"creationDate": attachment.creationDate ? [RCTAppleHealthKit buildISO8601StringFromDate:attachment.creationDate] : [NSNull null],
-                @"data": dataString ?: [NSNull null],
-                @"isBase64": [contentType hasPrefix:@"text/"] ? @NO : @YES,
-                @"metadata": attachment.metadata ?: [NSNull null]
-            };
-            
-            callback(@[[NSNull null], result]);
-        });
+        }];
     } else {
         callback(@[RCTMakeError(@"HKAttachment is only available in iOS 16.0 and above", nil, nil)]);
         return;
     }
 }
-
 @end
