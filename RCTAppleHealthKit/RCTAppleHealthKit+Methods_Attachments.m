@@ -1,13 +1,11 @@
-// RCTAppleHealthKit+Methods_Attachments.h
-#import "RCTAppleHealthKit.h"
+//
+//  RCTAppleHealthKit+Methods_Attachments.m
+//  RCTAppleHealthKit
+//
+//  This source code is licensed under the MIT-style license found in the
+//  LICENSE file in the root directory of this source tree.
+//
 
-@interface RCTAppleHealthKit (Methods_Attachments)
-
-- (void)attachments_getAttachment:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback;
-
-@end
-
-// RCTAppleHealthKit+Methods_Attachments.m
 #import "RCTAppleHealthKit+Methods_Attachments.h"
 #import "RCTAppleHealthKit+Utils.h"
 
