@@ -603,6 +603,12 @@ RCT_EXPORT_METHOD(getClinicalRecords:(NSDictionary *)input callback:(RCTResponse
     [self clinicalRecords_getClinicalRecords:input callback:callback];
 }
 
+RCT_EXPORT_METHOD(getClinicalRecordAttachment:(NSDictionary *)input callback:(RCTResponseSenderBlock)callback)
+{
+    [self _initializeHealthStore];
+    [self clinicalRecords_getAttachment:input callback:callback];
+}
+
 - (HKHealthStore *)_initializeHealthStore {
   if(![self healthStore]) {
     self.healthStore = [[HKHealthStore alloc] init];
