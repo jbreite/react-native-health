@@ -72,12 +72,51 @@
         return;
     }
     
-    // This is just a placeholder to show we received the binary ID
-    callback(@[[NSNull null], @{@"message": @"Attachment API is being implemented", @"receivedId": binaryId}]);
+    // Extract the ID part if it has a "Binary/" prefix
+    if ([binaryId hasPrefix:@"Binary/"]) {
+        binaryId = [binaryId substringFromIndex:7]; // Remove "Binary/" prefix
+    }
     
-    // TODO: Implement the actual attachment retrieval once we resolve the build issues
+    NSLog(@"Attempting to retrieve attachment with ID: %@", binaryId);
+    
+    // Get clinical note records
+    HKSampleType *clinicalNoteType = [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
+    
+    // Create a query to get all clinical records (we'll filter for the specific binary later)
+    HKSampleQuery *query = [[HKSampleQuery alloc] initWithSampleType:clinicalNoteType 
+                                                          predicate:nil
+                                                              limit:100 
+                                                    sortDescriptors:nil 
+                                                     resultsHandler:^(HKSampleQuery * _Nonnull query, NSArray<__kindof HKSample *> * _Nullable results, NSError * _Nullable error) {
+        
+        if (error) {
+            NSLog(@"Error querying clinical records: %@", error);
+            callback(@[RCTMakeError(@"Error querying clinical records", error, nil)]);
+            return;
+        }
+        
+        if (results.count == 0) {
+            NSLog(@"No clinical records found");
+            callback(@[RCTMakeError(@"No clinical records found", nil, nil)]);
+            return;
+        }
+        
+        NSLog(@"Found %lu clinical records. Looking for binary ID: %@", (unsigned long)results.count, binaryId);
+        
+        // At this point, we've successfully queried clinical records
+        // For now, just return a success message to verify this part works
+        callback(@[[NSNull null], @{
+            @"status": @"success",
+            @"message": @"Found clinical records",
+            @"recordCount": @(results.count),
+            @"binaryId": binaryId
+        }]);
+        
+        // TODO: Next step will be to scan these records for the binary reference
+    }];
+    
+    [self.healthStore executeQuery:query];
 }
-
 - (void)clinical_registerObserver:(NSString *)type bridge:(RCTBridge *)bridge hasListeners:(bool)hasListeners
 {
     HKSampleType *recordType = [RCTAppleHealthKit clinicalTypeFromName:type];
