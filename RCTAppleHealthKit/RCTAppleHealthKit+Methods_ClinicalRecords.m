@@ -82,7 +82,7 @@
     // Get clinical note records
     HKSampleType *clinicalNoteType = [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
     
-    // Create a query to get all clinical records (we'll filter for the specific binary later)
+    // Create a query to get all clinical records
     HKSampleQuery *query = [[HKSampleQuery alloc] initWithSampleType:clinicalNoteType 
                                                           predicate:nil
                                                               limit:100 
@@ -103,16 +103,55 @@
         
         NSLog(@"Found %lu clinical records. Looking for binary ID: %@", (unsigned long)results.count, binaryId);
         
-        // At this point, we've successfully queried clinical records
-        // For now, just return a success message to verify this part works
+        // Find the clinical record that references our binary
+        HKClinicalRecord *targetRecord = nil;
+        NSString *contentType = nil;
+        
+        for (HKClinicalRecord *record in results) {
+            // Parse the FHIR data
+            NSError *jsonError = nil;
+            NSDictionary *fhirData = [NSJSONSerialization JSONObjectWithData:record.FHIRResource.data 
+                                                                     options:0 
+                                                                       error:&jsonError];
+            
+            if (jsonError) {
+                NSLog(@"Error parsing FHIR data: %@", jsonError);
+                continue; // Skip this record and try the next one
+            }
+            
+            // Look for presentedForm array
+            NSArray *presentedForms = fhirData[@"presentedForm"];
+            if (presentedForms && [presentedForms isKindOfClass:[NSArray class]]) {
+                for (NSDictionary *form in presentedForms) {
+                    NSString *url = form[@"url"];
+                    if (url && [url hasSuffix:binaryId]) {
+                        targetRecord = record;
+                        contentType = form[@"contentType"];
+                        NSLog(@"Found matching record with contentType: %@", contentType);
+                        break;
+                    }
+                }
+            }
+            
+            if (targetRecord) break;
+        }
+        
+        if (!targetRecord) {
+            NSLog(@"No clinical record found with binary ID: %@", binaryId);
+            callback(@[RCTMakeError(@"No clinical record references this binary ID", nil, nil)]);
+            return;
+        }
+        
+        // We found the record, return basic info about it for now
         callback(@[[NSNull null], @{
             @"status": @"success",
-            @"message": @"Found clinical records",
-            @"recordCount": @(results.count),
-            @"binaryId": binaryId
+            @"message": @"Found the specific clinical record",
+            @"recordId": [[targetRecord UUID] UUIDString],
+            @"binaryId": binaryId,
+            @"contentType": contentType ?: @"unknown"
         }]);
         
-        // TODO: Next step will be to scan these records for the binary reference
+        // TODO: Next step will be to access the attachment data
     }];
     
     [self.healthStore executeQuery:query];
