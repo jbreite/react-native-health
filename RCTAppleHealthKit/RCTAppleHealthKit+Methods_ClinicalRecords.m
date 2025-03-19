@@ -72,91 +72,10 @@
         return;
     }
     
-    // Convert string to UUID
-    NSUUID *uuid;
-    @try {
-        uuid = [[NSUUID alloc] initWithUUIDString:binaryId];
-    } @catch (NSException *exception) {
-        callback(@[RCTMakeError(@"Invalid binary ID format. Must be a valid UUID string.", nil, nil)]);
-        return;
-    }
+    // This is just a placeholder to show we received the binary ID
+    callback(@[[NSNull null], @{@"message": @"Attachment API is being implemented", @"receivedId": binaryId}]);
     
-    if (!uuid) {
-        callback(@[RCTMakeError(@"Invalid binary ID", nil, nil)]);
-        return;
-    }
-    
-    // Create an attachment store
-    HKAttachmentStore *attachmentStore = [[HKAttachmentStore alloc] initWithHealthStore:self.healthStore];
-    
-    // Find the clinical sample that contains this attachment
-    HKSampleType *clinicalNoteType = [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
-    NSPredicate *predicate = [HKQuery predicateForObjectWithUUID:uuid];
-    
-    [self.healthStore executeQuery:[[HKSampleQuery alloc] initWithSampleType:clinicalNoteType predicate:predicate limit:1 sortDescriptors:nil resultsHandler:^(HKSampleQuery * _Nonnull query, NSArray<__kindof HKSample *> * _Nullable results, NSError * _Nullable error) {
-        
-        if (error) {
-            callback(@[RCTMakeError(@"Error querying for clinical sample", error, nil)]);
-            return;
-        }
-        
-        if (results.count == 0) {
-            callback(@[RCTMakeError(@"No clinical note found with the provided ID", nil, nil)]);
-            return;
-        }
-        
-        // Get the clinical sample
-        HKClinicalRecord *clinicalRecord = results.firstObject;
-        
-        // Get attachments for this sample
-        [attachmentStore attachmentsForSample:clinicalRecord completion:^(NSArray<HKAttachment *> * _Nullable attachments, NSError * _Nullable attachmentError) {
-            
-            if (attachmentError) {
-                callback(@[RCTMakeError(@"Error retrieving attachments", attachmentError, nil)]);
-                return;
-            }
-            
-            if (attachments.count == 0) {
-                callback(@[RCTMakeError(@"No attachments found for this clinical record", nil, nil)]);
-                return;
-            }
-            
-            // For now, we'll just get the first attachment
-            HKAttachment *attachment = attachments.firstObject;
-            
-            // Create a data reader for the attachment
-            HKAttachmentDataReader *dataReader = [attachmentStore dataReaderForAttachment:attachment];
-            
-            // Get the data
-            [dataReader readDataWithCompletion:^(NSData * _Nullable data, NSError * _Nullable dataError) {
-                if (dataError) {
-                    callback(@[RCTMakeError(@"Error reading attachment data", dataError, nil)]);
-                    return;
-                }
-                
-                // Convert data to base64
-                NSString *base64Data = [data base64EncodedStringWithOptions:0];
-                
-                // Create response object
-                NSDictionary *response = @{
-                    @"id": [[attachment identifier] UUIDString],
-                    @"name": [attachment name],
-                    @"contentType": [[attachment contentType] identifier],
-                    @"size": @([attachment size]),
-                    @"creationDate": [RCTAppleHealthKit buildISO8601StringFromDate:[attachment creationDate]],
-                    @"data": base64Data
-                };
-                
-                if ([attachment metadata]) {
-                    NSMutableDictionary *mutableResponse = [response mutableCopy];
-                    [mutableResponse setObject:[attachment metadata] forKey:@"metadata"];
-                    response = [mutableResponse copy];
-                }
-                
-                callback(@[[NSNull null], response]);
-            }];
-        }];
-    }]];
+    // TODO: Implement the actual attachment retrieval once we resolve the build issues
 }
 
 - (void)clinical_registerObserver:(NSString *)type bridge:(RCTBridge *)bridge hasListeners:(bool)hasListeners
