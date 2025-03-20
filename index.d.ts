@@ -451,8 +451,8 @@ declare module 'react-native-health' {
     ): void
 
     getClinicalRecordAttachment(
-      options: { binaryId: string },
-      callback: (err: string, results: HealthAttachment) => void,
+      options: { recordId: string },
+      callback: (err: string, results: HealthAttachment[]) => void,
     ): void
 
     setObserver(options: HealthObserverOptions): void
