@@ -8,6 +8,7 @@
 #import "RCTAppleHealthKit+Methods_ClinicalRecords.h"
 #import "RCTAppleHealthKit+Queries.h"
 #import "RCTAppleHealthKit+Utils.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 @implementation RCTAppleHealthKit (Methods_ClinicalRecords)
 
@@ -87,8 +88,7 @@
         // Create a query to find the object directly by UUID
         NSPredicate *predicate = [HKQuery predicateForObjectWithUUID:uuid];
         
-        // Query for all clinical record types - HealthKit will find the matching UUID
-        // regardless of which clinical type it belongs to
+        // Query for clinical note records - HealthKit will find the matching UUID
         HKSampleType *clinicalType = [HKObjectType clinicalTypeForIdentifier:HKClinicalTypeIdentifierClinicalNoteRecord];
         
         HKSampleQuery *query = [[HKSampleQuery alloc] initWithSampleType:clinicalType
@@ -144,50 +144,31 @@
                             return;
                         }
                         
-                        // Get contentType from FHIR data if possible
-                        NSString *contentType = @"unknown";
-                        
-                        // Parse FHIR data to find content type for this attachment
-                        NSError *jsonError = nil;
-                        NSDictionary *fhirData = [NSJSONSerialization JSONObjectWithData:record.FHIRResource.data 
-                                                                                options:0 
-                                                                                  error:&jsonError];
-                        
-                        if (!jsonError) {
-                            // Try to match content type for DocumentReference
-                            NSArray *contentArray = fhirData[@"content"];
-                            if (contentArray && [contentArray isKindOfClass:[NSArray class]]) {
-                                for (NSDictionary *item in contentArray) {
-                                    NSDictionary *attachmentObj = item[@"attachment"];
-                                    if (attachmentObj && attachmentObj[@"contentType"]) {
-                                        contentType = attachmentObj[@"contentType"];
-                                        break;
-                                    }
-                                }
-                            }
-                            
-                            // Try to match content type for DiagnosticReport
-                            if ([contentType isEqualToString:@"unknown"]) {
-                                NSArray *presentedForms = fhirData[@"presentedForm"];
-                                if (presentedForms && [presentedForms isKindOfClass:[NSArray class]] && presentedForms.count > 0) {
-                                    NSDictionary *form = presentedForms[0];
-                                    if (form[@"contentType"]) {
-                                        contentType = form[@"contentType"];
-                                    }
-                                }
+                        // Convert UTType to string properly
+                        NSString *contentTypeString = @"unknown";
+                        if (@available(iOS 14.0, *)) {
+                            if (attachment.contentType) {
+                                contentTypeString = attachment.contentType.preferredMIMEType ?: 
+                                                  attachment.contentType.identifier ?: 
+                                                  @"unknown";
                             }
                         }
                         
                         // Create result dictionary
                         NSString *base64Data = [data base64EncodedStringWithOptions:0];
-                        NSDictionary *attachmentData = @{
+                        NSMutableDictionary *attachmentData = [@{
                             @"id": [[attachment identifier] UUIDString],
                             @"name": attachment.name ?: @"",
-                            @"contentType": contentType,
+                            @"contentType": contentTypeString,
                             @"size": @(attachment.size),
                             @"creationDate": [RCTAppleHealthKit buildISO8601StringFromDate:attachment.creationDate],
                             @"data": base64Data
-                        };
+                        } mutableCopy];
+                        
+                        // If there's metadata, add it
+                        if (attachment.metadata) {
+                            attachmentData[@"metadata"] = attachment.metadata;
+                        }
                         
                         // Thread-safe addition to results array
                         @synchronized(attachmentResults) {
